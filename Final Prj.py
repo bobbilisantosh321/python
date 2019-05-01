@@ -47,6 +47,25 @@ class personalProfile(Base):
     def getName(self):
         #Method to return User Name
         return str(self.__FName) + ' ' + str(self.__LName)
+
+class reservation(Base):
+    #Database Table name
+    __tablename__ = 'person'
+    #Table Columns
+    RoomId = Column(Integer, primary_key=True)
+    __PersonId = Column(Integer, primary_key=True)
+    FromDate = Column(Integer, primary_key=True)
+    ToDate = Column(Integer)
+    Status = Column(String)
+    Charge = Column(Float)
+    paymentStatus = Column(String)
+    
+    def getPersonBooked(self):
+        return self.__PersonId
+    
+    def cancelBooking(self):
+        self.
+        
     
 class manageDB():
     def __init__(self, databaseSession):
