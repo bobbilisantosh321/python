@@ -48,9 +48,9 @@ class personalProfile(Base):
         #Method to return User Name
         return str(self.__FName) + ' ' + str(self.__LName)
 
-class reservation(Base):
+class reservations(Base):
     #Database Table name
-    __tablename__ = 'person'
+    __tablename__ = 'reservation'
     #Table Columns
     RoomId = Column(Integer, primary_key=True)
     __PersonId = Column(Integer, primary_key=True)
@@ -60,12 +60,17 @@ class reservation(Base):
     Charge = Column(Float)
     paymentStatus = Column(String)
     
-    def getPersonBooked(self):
-        return self.__PersonId
+    def __init(self, RoomId, PersonId, FromDate, ToDate, Charge):
+        self.RoomId = RoomId
+        self.PersonId = PersonId
+        self.FromDate = FromDate
+        self.ToDate = ToDate
+        self.Status = 'B' #Default Initial Status Booked
+        self.Charge = Charge
+        self.paymentStatus = '' #Default Payment Status Blank
     
-    def cancelBooking(self):
-        self.
-        
+    def getPersonInReservation(self):
+        return self.__PersonId
     
 class manageDB():
     def __init__(self, databaseSession):
@@ -97,12 +102,13 @@ class manageRoom(manageDB):
          
         self.dbSession.commit()
         
-        self.printRoomDetails(room)
-        
-        print(self.checkDuplicateId(Id))
+        self.printRoomDetails(room, True)
     
-    def printRoomDetails(self, room):
-        print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice(), "added to Database")
+    def printRoomDetails(self, room, DbConfirmation=None):
+        if DbConfirmation == True:
+            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice(), "added to Database")
+        else:
+            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice())
     
     def checkDuplicateId(self, Id):
         
@@ -112,6 +118,12 @@ class manageRoom(manageDB):
             return True
         else:
             return False
+        
+    def searchRoomById(self, Id):
+        room = self.dbSession.query(personalProfile).filter_by(Id = Id).first()
+        
+        if person != None:
+            return person  
     
     def checkAvailablity(self, Type=None):
 
@@ -122,6 +134,25 @@ class manageRoom(manageDB):
         
         for room in rooms:
             self.printRoomDetails(room)
+            
+class manageReservation(manageDB):
+    def addReservation(self, RoomId, PersonId, FromDate, ToDate, RoomCharge):
+        
+        reservation = reservations(RoomId, PersonId, FromDate, ToDate, RoomCharge)
+        
+        self.dbSession.add(reservation)
+         
+        self.dbSession.commit()
+        
+        self.printReservationDetails(reservation, True)
+    
+    def printReservationDetails(self, reservation, DbConfirmation=None):
+        
+        if DbConfirmation == True:
+            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice(), "added to Database")
+        else:
+            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice())
+        
         
 class databaseSession(object):
     #Private variables to have instance & list
