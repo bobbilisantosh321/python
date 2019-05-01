@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import and_, or_, not_
 
 Base =  declarative_base()
 
@@ -30,53 +31,53 @@ class personalProfile(Base):
     __tablename__ = 'person'
     #Table Columns
     Id = Column(Integer, primary_key=True)
-    __FName = Column(String)
-    __LName = Column(String)
+    FName = Column(String)
+    LName = Column(String)
     Type = Column(String)
     phone = Column(Integer)
     overdue = Column(String)
     
     def __init__(self, Id, FName, LName, Type, Phone):
         self.Id = Id
-        self.__FName = FName
-        self.__LName = LName
+        self.FName = FName
+        self.LName = LName
         self.Type = Type
         self.phone = Phone
         self.overdue = ''
     
     def getName(self):
         #Method to return User Name
-        return str(self.__FName) + ' ' + str(self.__LName)
+        return str(self.FName) + ' ' + str(self.LName)
 
-class reservations(Base):
+class baseReservation(Base):
     #Database Table name
-    __tablename__ = 'reservation'
+    __tablename__ = 'reservations'
     #Table Columns
     RoomId = Column(Integer, primary_key=True)
-    __PersonId = Column(Integer, primary_key=True)
+    PersonId = Column(Integer, primary_key=True)
     FromDate = Column(Integer, primary_key=True)
     ToDate = Column(Integer)
     Status = Column(String)
     Charge = Column(Float)
     paymentStatus = Column(String)
     
-    def __init(self, RoomId, PersonId, FromDate, ToDate, Charge):
+    def __init__(self, RoomId, PersonId, FromDate, ToDate, Charge):
         self.RoomId = RoomId
         self.PersonId = PersonId
         self.FromDate = FromDate
         self.ToDate = ToDate
-        self.Status = 'B' #Default Initial Status Booked
+        self.Status = 'Booked' #Default Initial Status Booked
         self.Charge = Charge
         self.paymentStatus = '' #Default Payment Status Blank
     
     def getPersonInReservation(self):
-        return self.__PersonId
+        return self.PersonId
     
 class manageDB():
     def __init__(self, databaseSession):
         self.dbSession = databaseSession
 
-class ManagePerson(manageDB):
+class managePerson(manageDB):
     def addPerson(self, Id, FName, LName, Type, Phone):
         person = personalProfile(Id, FName, LName, Type, Phone)
         self.dbSession.add(person)
@@ -112,7 +113,7 @@ class manageRoom(manageDB):
     
     def checkDuplicateId(self, Id):
         
-        room = self.dbSession.query(baseRoom).filter_by(Id = Id).first()
+        room = self.searchRoomById(Id)
 
         if room != None:
             return True
@@ -120,10 +121,10 @@ class manageRoom(manageDB):
             return False
         
     def searchRoomById(self, Id):
-        room = self.dbSession.query(personalProfile).filter_by(Id = Id).first()
+        room = self.dbSession.query(baseRoom).filter_by(Id = Id).first()
         
-        if person != None:
-            return person  
+        if room != None:
+            return room  
     
     def checkAvailablity(self, Type=None):
 
@@ -138,21 +139,39 @@ class manageRoom(manageDB):
 class manageReservation(manageDB):
     def addReservation(self, RoomId, PersonId, FromDate, ToDate, RoomCharge):
         
-        reservation = reservations(RoomId, PersonId, FromDate, ToDate, RoomCharge)
+        reservationToAdd = baseReservation(RoomId, PersonId, FromDate, ToDate, RoomCharge)
         
-        self.dbSession.add(reservation)
+        self.dbSession.add(reservationToAdd)
          
         self.dbSession.commit()
         
-        self.printReservationDetails(reservation, True)
+        self.printReservationDetails(reservationToAdd, True)
+    
+    def searchReservation(self, RoomId, PersonId, FromDate):
+        return self.dbSession.query(baseReservation).\
+            filter_by(RoomId=RoomId, PersonId = PersonId, FromDate=FromDate).first()
     
     def printReservationDetails(self, reservation, DbConfirmation=None):
         
-        if DbConfirmation == True:
-            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice(), "added to Database")
-        else:
-            print("Room", room.Id, "Type", room.Type, "with price $", room.getPrice())
+        rooms = manageRoom( self.dbSession )
+        room = rooms.searchRoomById( reservation.RoomId )
+        if room == None:
+            print("No Room found for Room ID", reservation.RoomId)
+        persons = managePerson( self.dbSession )
+        personId = reservation.getPersonInReservation()
+        person = persons.searchById( personId )
+        if person == None:
+            print("No Person found with ID", personId)
         
+        if DbConfirmation == True:
+            print("Room", reservation.RoomId, "Type", room.Type, "with status", reservation.Status, "& price $", reservation.Charge, "for", person.getName() , "added to Database")
+        else:
+            print("Room", reservation.RoomId, "Type", room.Type, "with status", reservation.Status, "& price $", room.getPrice())
+    
+    def cancelReservation(self, roomId, personId, FromDate):
+         reservation = self.searchReservation( roomId, personId, FromDate )
+         reservation.Status = "Cancelled"
+         self.dbSession.commit()
         
 class databaseSession(object):
     #Private variables to have instance & list
@@ -276,6 +295,10 @@ class inputRoomDetails(GetInputAndValidate):
     def getInputRoomDetails(self, add=None):
         return self.getRoomNumber(add), self.getRoomType(), self.getRoomPrice()
 
+class inputReservationDetails(GetInputAndValidate):
+    def __init__(self):
+        self.roomType = ["Queen","King","Twin"]
+
 def main():
     dbConnection = databaseSession()
     dbConnection.createSession()
@@ -295,7 +318,7 @@ def main():
     print("Show only Queen availability")
     roomCollection.checkAvailablity("Queen")
     
-    profiles = ManagePerson(  dbConnection.session )
+    profiles = managePerson(  dbConnection.session )
     profiles.addPerson(1, 'David', 'Thonny', 'C', 9521231234)
     print("Person added to DB")
     print()
@@ -303,5 +326,13 @@ def main():
     dbPerson = profiles.searchById(1)
     profiles.printPersonDetails(dbPerson)
     
+    mngReservations = manageReservation( dbConnection.session )
+    
+    mngReservations.addReservation( 1, 1, 20190806, 20190808, 20.1)
+    
+    mngReservations.cancelReservation(1, 1, 20190806)
+    
+    mngReservations.printReservationDetails(mngReservations.searchReservation(1, 1, 20190806))
+
 main()
     
